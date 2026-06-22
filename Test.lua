@@ -2,6 +2,7 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local localPlayer = Players.LocalPlayer
+local camera = workspace.CurrentCamera
 
 -- Создаём главный GUI
 local screenGui = Instance.new("ScreenGui")
@@ -10,7 +11,7 @@ screenGui.Parent = localPlayer:WaitForChild("PlayerGui")
 
 -- Создаём перетаскиваемую панель
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 260, 0, 240)
+mainFrame.Size = UDim2.new(0, 280, 0, 420)
 mainFrame.Position = UDim2.new(0, 20, 0, 100)
 mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 mainFrame.BackgroundTransparency = 0.2
@@ -37,14 +38,13 @@ local titleText = Instance.new("TextLabel")
 titleText.Size = UDim2.new(1, -40, 1, 0)
 titleText.Position = UDim2.new(0, 10, 0, 0)
 titleText.BackgroundTransparency = 1
-titleText.Text = "ESP Панель"
+titleText.Text = "ESP + AIM Панель"
 titleText.TextColor3 = Color3.fromRGB(255, 255, 255)
 titleText.Font = Enum.Font.SourceSansBold
-titleText.TextSize = 16
+titleText.TextSize = 15
 titleText.TextXAlignment = Enum.TextXAlignment.Left
 titleText.Parent = titleBar
 
--- Кнопка закрытия
 local closeButton = Instance.new("TextButton")
 closeButton.Size = UDim2.new(0, 30, 0, 30)
 closeButton.Position = UDim2.new(1, -35, 0, 2)
@@ -59,7 +59,6 @@ local closeCorner = Instance.new("UICorner")
 closeCorner.CornerRadius = UDim.new(0, 15)
 closeCorner.Parent = closeButton
 
--- Кнопка скрытия
 local hideButton = Instance.new("TextButton")
 hideButton.Size = UDim2.new(0, 30, 0, 30)
 hideButton.Position = UDim2.new(1, -70, 0, 2)
@@ -74,17 +73,17 @@ local hideCorner = Instance.new("UICorner")
 hideCorner.CornerRadius = UDim.new(0, 15)
 hideCorner.Parent = hideButton
 
--- Содержимое панели
+-- Содержимое
 local contentFrame = Instance.new("Frame")
 contentFrame.Size = UDim2.new(1, -20, 1, -45)
 contentFrame.Position = UDim2.new(0, 10, 0, 40)
 contentFrame.BackgroundTransparency = 1
 contentFrame.Parent = mainFrame
 
--- Функция для создания переключателей
+-- Функция создания переключателя
 local function createToggle(name, yPos)
     local toggle = Instance.new("TextButton")
-    toggle.Size = UDim2.new(1, 0, 0, 32)
+    toggle.Size = UDim2.new(1, 0, 0, 30)
     toggle.Position = UDim2.new(0, 0, 0, yPos)
     toggle.BackgroundColor3 = Color3.fromRGB(0, 170, 100)
     toggle.Text = name .. ": ВКЛ"
@@ -100,13 +99,117 @@ local function createToggle(name, yPos)
     return toggle
 end
 
--- Создаём переключатели
+-- Функция создания слайдера
+local function createSlider(name, min, max, default, yPos)
+    local sliderFrame = Instance.new("Frame")
+    sliderFrame.Size = UDim2.new(1, 0, 0, 55)
+    sliderFrame.Position = UDim2.new(0, 0, 0, yPos)
+    sliderFrame.BackgroundTransparency = 1
+    sliderFrame.Parent = contentFrame
+    
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 0, 20)
+    label.BackgroundTransparency = 1
+    label.Text = name .. ": " .. default
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.Font = Enum.Font.SourceSans
+    label.TextSize = 12
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = sliderFrame
+    
+    local sliderBg = Instance.new("Frame")
+    sliderBg.Size = UDim2.new(1, 0, 0, 8)
+    sliderBg.Position = UDim2.new(0, 0, 0, 25)
+    sliderBg.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    sliderBg.Parent = sliderFrame
+    
+    local sliderCorner = Instance.new("UICorner")
+    sliderCorner.CornerRadius = UDim.new(0, 4)
+    sliderCorner.Parent = sliderBg
+    
+    local sliderFill = Instance.new("Frame")
+    sliderFill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
+    sliderFill.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+    sliderFill.Parent = sliderBg
+    
+    local fillCorner = Instance.new("UICorner")
+    fillCorner.CornerRadius = UDim.new(0, 4)
+    fillCorner.Parent = sliderFill
+    
+    local sliderBtn = Instance.new("TextButton")
+    sliderBtn.Size = UDim2.new(0, 16, 0, 16)
+    sliderBtn.Position = UDim2.new((default - min) / (max - min), -8, 0, 21)
+    sliderBtn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    sliderBtn.Text = ""
+    sliderBtn.Parent = sliderFrame
+    
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 8)
+    btnCorner.Parent = sliderBtn
+    
+    local value = default
+    
+    local function updateSlider(input)
+        local pos = math.clamp((input.Position.X - sliderBg.AbsolutePosition.X) / sliderBg.AbsoluteSize.X, 0, 1)
+        value = math.floor(min + (max - min) * pos)
+        sliderFill.Size = UDim2.new(pos, 0, 1, 0)
+        sliderBtn.Position = UDim2.new(pos, -8, 0, 21)
+        label.Text = name .. ": " .. value
+    end
+    
+    sliderBtn.MouseButton1Down:Connect(function()
+        local connection
+        connection = UserInputService.InputChanged:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseMovement then
+                updateSlider(input)
+            end
+        end)
+        
+        local endConnection
+        endConnection = UserInputService.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                connection:Disconnect()
+                endConnection:Disconnect()
+            end
+        end)
+    end)
+    
+    return {
+        Frame = sliderFrame,
+        GetValue = function() return value end,
+        SetValue = function(v) 
+            value = v
+            local pos = (v - min) / (max - min)
+            sliderFill.Size = UDim2.new(pos, 0, 1, 0)
+            sliderBtn.Position = UDim2.new(pos, -8, 0, 21)
+            label.Text = name .. ": " .. v
+        end
+    }
+end
+
+-- Создаём переключатели и слайдеры
 local espToggle = createToggle("ESP", 0)
-local playerToggle = createToggle("Игроки", 40)
-local npcToggle = createToggle("NPC", 80)
-local nameToggle = createToggle("Имена", 120)
-local healthToggle = createToggle("Здоровье", 160)
-local highlightToggle = createToggle("Подсветка", 200)
+local playerToggle = createToggle("Игроки", 35)
+local npcToggle = createToggle("NPC", 70)
+local nameToggle = createToggle("Имена", 105)
+local healthToggle = createToggle("Здоровье", 140)
+local highlightToggle = createToggle("Подсветка", 175)
+
+-- Разделитель
+local divider = Instance.new("Frame")
+divider.Size = UDim2.new(1, 0, 0, 2)
+divider.Position = UDim2.new(0, 0, 0, 210)
+divider.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+divider.Parent = contentFrame
+
+-- Aim Bot
+local aimToggle = createToggle("AIM BOT", 220)
+local aimRadiusSlider = createSlider("Радиус", 50, 500, 200, 255)
+local aimSmoothSlider = createSlider("Плавность", 1, 20, 5, 315)
+local aimPartToggle = createToggle("Цель: Голова", 370) -- true = голова, false = туловище
+
+-- Прицел
+local crosshairToggle = createToggle("Прицел", 405)
 
 -- Логика перетаскивания
 local dragging = false
@@ -146,99 +249,126 @@ local npcESPEnabled = true
 local nameEnabled = true
 local healthEnabled = true
 local highlightEnabled = true
+local aimEnabled = false
+local aimPart = "Head" -- Head или HumanoidRootPart
+local crosshairEnabled = false
 
 local espObjects = {}
 local npcConnections = {}
 
--- Закрытие панели
+-- Закрытие
 closeButton.MouseButton1Click:Connect(function()
-    -- Очищаем NPC коннекции
     for _, conn in pairs(npcConnections) do
         conn:Disconnect()
     end
+    if aimConnection then aimConnection:Disconnect() end
+    if crosshairGui then crosshairGui:Destroy() end
     screenGui:Destroy()
 end)
 
--- Скрытие/показ
+-- Скрытие
 local panelHidden = false
 hideButton.MouseButton1Click:Connect(function()
     panelHidden = not panelHidden
     contentFrame.Visible = not panelHidden
     hideButton.Text = panelHidden and "□" or "_"
-    mainFrame.Size = panelHidden and UDim2.new(0, 260, 0, 40) or UDim2.new(0, 260, 0, 240)
+    mainFrame.Size = panelHidden and UDim2.new(0, 280, 0, 40) or UDim2.new(0, 280, 0, 420)
 end)
 
--- Функция обновления переключателя
-local function updateToggle(toggle, enabled, name)
+-- Обновление переключателя
+local function updateToggleUI(toggle, enabled, name)
     toggle.Text = name .. ": " .. (enabled and "ВКЛ" or "ВЫКЛ")
     toggle.BackgroundColor3 = enabled and Color3.fromRGB(0, 170, 100) or Color3.fromRGB(170, 0, 0)
 end
 
--- Функция обновления видимости ESP
+-- Обновление ESP
 local function updateAllESP()
     for _, data in pairs(espObjects) do
         local isPlayer = data.isPlayer
         local shouldShow = espEnabled and ((isPlayer and playerESPEnabled) or (not isPlayer and npcESPEnabled))
         
-        if data.billboard then
-            data.billboard.Enabled = shouldShow
-        end
-        if data.highlight then
-            data.highlight.Enabled = shouldShow and highlightEnabled
-        end
-        if data.nameLabel then
-            data.nameLabel.Visible = nameEnabled
-        end
-        if data.healthLabel then
-            data.healthLabel.Visible = healthEnabled
-        end
+        if data.billboard then data.billboard.Enabled = shouldShow end
+        if data.highlight then data.highlight.Enabled = shouldShow and highlightEnabled end
+        if data.nameLabel then data.nameLabel.Visible = nameEnabled end
+        if data.healthLabel then data.healthLabel.Visible = healthEnabled end
     end
 end
 
--- Переключатели
+-- Переключатели ESP
 espToggle.MouseButton1Click:Connect(function()
     espEnabled = not espEnabled
-    updateToggle(espToggle, espEnabled, "ESP")
+    updateToggleUI(espToggle, espEnabled, "ESP")
     updateAllESP()
 end)
 
 playerToggle.MouseButton1Click:Connect(function()
     playerESPEnabled = not playerESPEnabled
-    updateToggle(playerToggle, playerESPEnabled, "Игроки")
+    updateToggleUI(playerToggle, playerESPEnabled, "Игроки")
     updateAllESP()
 end)
 
 npcToggle.MouseButton1Click:Connect(function()
     npcESPEnabled = not npcESPEnabled
-    updateToggle(npcToggle, npcESPEnabled, "NPC")
+    updateToggleUI(npcToggle, npcESPEnabled, "NPC")
     updateAllESP()
 end)
 
 nameToggle.MouseButton1Click:Connect(function()
     nameEnabled = not nameEnabled
-    updateToggle(nameToggle, nameEnabled, "Имена")
+    updateToggleUI(nameToggle, nameEnabled, "Имена")
     updateAllESP()
 end)
 
 healthToggle.MouseButton1Click:Connect(function()
     healthEnabled = not healthEnabled
-    updateToggle(healthToggle, healthEnabled, "Здоровье")
+    updateToggleUI(healthToggle, healthEnabled, "Здоровье")
     updateAllESP()
 end)
 
 highlightToggle.MouseButton1Click:Connect(function()
     highlightEnabled = not highlightEnabled
-    updateToggle(highlightToggle, highlightEnabled, "Подсветка")
+    updateToggleUI(highlightToggle, highlightEnabled, "Подсветка")
     updateAllESP()
 end)
 
--- Функция создания ESP для персонажа (игрок или NPC)
+-- Aim Bot переключатель
+aimToggle.MouseButton1Click:Connect(function()
+    aimEnabled = not aimEnabled
+    updateToggleUI(aimToggle, aimEnabled, "AIM BOT")
+end)
+
+-- Цель (голова/туловище)
+aimPartToggle.MouseButton1Click:Connect(function()
+    if aimPart == "Head" then
+        aimPart = "HumanoidRootPart"
+        aimPartToggle.Text = "Цель: Туловище"
+    else
+        aimPart = "Head"
+        aimPartToggle.Text = "Цель: Голова"
+    end
+end)
+
+-- Прицел
+crosshairToggle.MouseButton1Click:Connect(function()
+    crosshairEnabled = not crosshairEnabled
+    updateToggleUI(crosshairToggle, crosshairEnabled, "Прицел")
+    
+    if crosshairEnabled then
+        createCrosshair()
+    else
+        if crosshairGui then
+            crosshairGui:Destroy()
+            crosshairGui = nil
+        end
+    end
+end)
+
+-- ESP для персонажа
 local function createESP(character, isPlayer, customName)
     if not character or not character.Parent then return end
     
     local head = character:FindFirstChild("Head")
     if not head then
-        -- Ждём появления головы
         local connection
         connection = character.ChildAdded:Connect(function(child)
             if child.Name == "Head" then
@@ -249,22 +379,18 @@ local function createESP(character, isPlayer, customName)
         return
     end
     
-    -- Проверяем, нет ли уже ESP на этом персонаже
     local existingBillboard = head:FindFirstChild("PlayerESP")
-    if existingBillboard then
-        existingBillboard:Destroy()
-    end
+    if existingBillboard then existingBillboard:Destroy() end
     
     local espData = {
         isPlayer = isPlayer,
-        character = character
+        character = character,
+        head = head
     }
     
-    -- Уникальный ID для NPC
     local id = isPlayer and character.Name or (customName .. "_" .. #espObjects)
     espObjects[id] = espData
     
-    -- Создаём BillboardGui
     local billboard = Instance.new("BillboardGui")
     billboard.Name = "PlayerESP"
     billboard.Adornee = head
@@ -275,7 +401,6 @@ local function createESP(character, isPlayer, customName)
     billboard.Parent = head
     espData.billboard = billboard
     
-    -- Фон
     local frame = Instance.new("Frame")
     frame.Size = UDim2.new(1, 0, 1, 0)
     frame.BackgroundColor3 = isPlayer and Color3.fromRGB(0, 0, 0) or Color3.fromRGB(50, 30, 0)
@@ -286,7 +411,6 @@ local function createESP(character, isPlayer, customName)
     corner.CornerRadius = UDim.new(0, 6)
     corner.Parent = frame
     
-    -- Имя
     local nameLabel = Instance.new("TextLabel")
     nameLabel.Size = UDim2.new(1, -10, 0.5, 0)
     nameLabel.Position = UDim2.new(0, 5, 0, 0)
@@ -300,7 +424,6 @@ local function createESP(character, isPlayer, customName)
     nameLabel.Parent = frame
     espData.nameLabel = nameLabel
     
-    -- Здоровье
     local healthLabel = Instance.new("TextLabel")
     healthLabel.Size = UDim2.new(1, -10, 0.5, 0)
     healthLabel.Position = UDim2.new(0, 5, 0.5, 0)
@@ -314,18 +437,16 @@ local function createESP(character, isPlayer, customName)
     healthLabel.Parent = frame
     espData.healthLabel = healthLabel
     
-    -- Подсветка
     local highlight = Instance.new("Highlight")
     highlight.Name = "PlayerHighlight"
     highlight.FillColor = isPlayer and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(255, 150, 50)
     highlight.FillTransparency = 0.8
     highlight.OutlineColor = isPlayer and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(255, 150, 50)
     highlight.OutlineTransparency = 0
-    highlight.Enabled = highlightEnabled and espEnabled and ((isPlayer and playerESPEnabled) or (not isPlayer and npcESPEnabled))
+    highlight.Enabled = highlightEnabled and espEnabled
     highlight.Parent = character
     espData.highlight = highlight
     
-    -- Обновление здоровья (если есть Humanoid)
     local humanoid = character:FindFirstChild("Humanoid")
     if humanoid then
         local function updateHealth()
@@ -344,21 +465,15 @@ local function createESP(character, isPlayer, customName)
         humanoid.HealthChanged:Connect(updateHealth)
         updateHealth()
         
-        -- Смерть
         humanoid.Died:Connect(function()
-            if billboard then
-                billboard:Destroy()
-            end
-            if highlight then
-                highlight:Destroy()
-            end
+            if billboard then billboard:Destroy() end
+            if highlight then highlight:Destroy() end
             espObjects[id] = nil
         end)
     else
         healthLabel.Text = isPlayer and "HP: ???" or "[NPC]"
     end
     
-    -- Удаление при исчезновении персонажа
     character.AncestryChanged:Connect(function(_, parent)
         if not parent then
             if billboard then billboard:Destroy() end
@@ -370,36 +485,28 @@ local function createESP(character, isPlayer, customName)
     return espData
 end
 
--- Функция сканирования NPC
+-- Сканирование NPC
 local function scanForNPCs()
-    -- Очищаем старые коннекции
     for _, conn in pairs(npcConnections) do
         conn:Disconnect()
     end
     npcConnections = {}
     
-    -- Ищем всех NPC в Workspace
     local function findNPCs(parent)
         for _, child in ipairs(parent:GetChildren()) do
-            -- Пропускаем игроков и системные объекты
             if child:IsA("Model") and not Players:GetPlayerFromCharacter(child) then
                 local humanoid = child:FindFirstChild("Humanoid")
                 local head = child:FindFirstChild("Head")
                 
-                -- Это NPC если есть Humanoid и голова
                 if humanoid and head and humanoid.Health > 0 then
                     local npcName = child.Name
-                    
-                    -- Если у NPC есть Humanoid с DisplayName
                     if humanoid.DisplayName and humanoid.DisplayName ~= "" then
                         npcName = humanoid.DisplayName
                     end
-                    
                     createESP(child, false, npcName)
                 end
             end
             
-            -- Рекурсивно проверяем папки
             if child:IsA("Folder") or child:IsA("Model") then
                 findNPCs(child)
             end
@@ -408,7 +515,6 @@ local function scanForNPCs()
     
     findNPCs(workspace)
     
-    -- Отслеживаем появление новых NPC
     local descendantAdded = workspace.DescendantAdded:Connect(function(descendant)
         if descendant:IsA("Model") and not Players:GetPlayerFromCharacter(descendant) then
             local humanoid = descendant:FindFirstChild("Humanoid")
@@ -425,28 +531,6 @@ local function scanForNPCs()
     end)
     
     table.insert(npcConnections, descendantAdded)
-    
-    -- Отслеживаем добавление головы/Humanoid в существующие модели
-    local childAdded = workspace.DescendantAdded:Connect(function(descendant)
-        if (descendant.Name == "Head" or descendant.Name == "Humanoid") and 
-           descendant.Parent and descendant.Parent:IsA("Model") and 
-           not Players:GetPlayerFromCharacter(descendant.Parent) then
-            
-            local model = descendant.Parent
-            local humanoid = model:FindFirstChild("Humanoid")
-            local head = model:FindFirstChild("Head")
-            
-            if humanoid and head and humanoid.Health > 0 then
-                local npcName = model.Name
-                if humanoid.DisplayName and humanoid.DisplayName ~= "" then
-                    npcName = humanoid.DisplayName
-                end
-                createESP(model, false, npcName)
-            end
-        end
-    end)
-    
-    table.insert(npcConnections, childAdded)
 end
 
 -- Применяем ESP к игрокам
@@ -474,13 +558,7 @@ Players.PlayerAdded:Connect(function(player)
     end
 end)
 
--- Сканируем NPC
 scanForNPCs()
-
--- Периодическое сканирование NPC (каждые 5 секунд)
-local scanConnection = RunService.Heartbeat:Connect(function()
-    -- Используем счётчик для периодической проверки
-end)
 
 spawn(function()
     while wait(5) do
@@ -491,3 +569,29 @@ spawn(function()
         end
     end
 end)
+
+-- =============== AIM BOT ===============
+
+local aimConnection
+
+-- Функция поиска ближайшей цели
+local function getClosestTarget()
+    local closestTarget = nil
+    local closestDistance = aimRadiusSlider.GetValue()
+    local mousePos = UserInputService:GetMouseLocation()
+    
+    for _, data in pairs(espObjects) do
+        if data.character and data.character.Parent then
+            -- Пропускаем если это игрок и игроки выключены
+            if data.isPlayer and not playerESPEnabled then continue end
+            -- Пропускаем если это NPC и NPC выключены
+            if not data.isPlayer and not npcESPEnabled then continue end
+            
+            local targetPart = data.character:FindFirstChild(aimPart)
+            if targetPart then
+                local humanoid = data.character:FindFirstChild("Humanoid")
+                if humanoid and humanoid.Health > 0 then
+                    local screenPos, onScreen = camera:WorldToViewportPoint(targetPart.Position)
+                    
+                    if onScreen then
+                   
